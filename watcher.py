@@ -9,10 +9,10 @@ SLEEP_DUR = 0.1
 
 
 class Watcher:
-    def __init__(self, config):
+    def __init__(self, config, w_name=None, w_class=None):
         self.config = config
-        self.w_name = None
-        self.w_class = None
+        self.w_name = w_name
+        self.w_class = w_class
 
     def handle_update(self, new_name, new_class):
         if (self.w_name, self.w_class) == (new_name, new_class):
@@ -54,6 +54,7 @@ class RuleRegex:
 
         return False
 
+
 class Rule:
     def __init__(self, prop_type, rule_type, regex, cmd):
         self.prop_type = prop_type
@@ -80,6 +81,7 @@ class Rule:
         # Maybe config option to show cmd output?
         # print(result.stdout)
 
+
 def main():
     disp = Xlib.display.Display()
 
@@ -89,7 +91,9 @@ def main():
             Rule(PropType.NAME, RuleType.STOPPED_MATCHING, None, "polybar-msg cmd show"),
             ]
 
-    watcher = Watcher(config)
+    # init the watcher with the current focus before we update for the first time
+    window = disp.get_input_focus().focus
+    watcher = Watcher(config, window.get_wm_name(), window.get_wm_class())
     while True:
         window = disp.get_input_focus().focus
         watcher.handle_update(window.get_wm_name(), window.get_wm_class())
