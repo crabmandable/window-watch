@@ -67,10 +67,16 @@ class Rule:
 
         for prop_type in [PropType.NAME, PropType.CLASS]:
             if self.prop_type == prop_type and from_props[prop_type.value] != to_props[prop_type.value]:
-                if self.rule_type == RuleType.ON_MATCH and self.regex.match(to_props[prop_type.value]):
-                    will_run = True
-                elif self.rule_type == RuleType.STOPPED_MATCHING and self.regex.match(from_props[prop_type.value]):
-                    will_run = True
+                matches_now = self.regex.match(to_props[prop_type.value])
+                matched_before = self.regex.match(from_props[prop_type.value])
+                if self.rule_type == RuleType.ON_MATCH:
+                    if matches_now and not matched_before:
+                        will_run = True
+                        break
+                elif self.rule_type == RuleType.STOPPED_MATCHING:
+                    if matched_before and not matches_now:
+                        will_run = True
+                        break
 
         if will_run:
             self.run_cmd()
