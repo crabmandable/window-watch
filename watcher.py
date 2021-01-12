@@ -1,11 +1,8 @@
 import Xlib
 import Xlib.display
-from time import sleep
 from enum import Enum
 import re
 import subprocess
-
-SLEEP_DUR = 0.1
 
 
 class Watcher:
@@ -89,21 +86,48 @@ class Rule:
 
 
 def main():
-    disp = Xlib.display.Display()
-
     # TODO config file
+    # TODO && conditions for rules
+    # TODO window was fullscreened
+    # TODO bsp window state change rules
     config = [
             Rule(PropType.NAME, RuleType.ON_MATCH, None, "polybar-msg cmd hide"),
             Rule(PropType.NAME, RuleType.STOPPED_MATCHING, None, "polybar-msg cmd show"),
             ]
 
+    # Connect to the X server and get the root window
+    disp = Xlib.display.Display()
+    root = disp.screen().root
+
+    # Listen for _NET_ACTIVE_WINDOW changes
+    # this will trigger events when the active window is changed
+    root.change_attributes(event_mask=Xlib.X.PropertyChangeMask)
+
+    # Prepare the property names we use so they can be fed into X11 APIs
+    NET_ACTIVE_WINDOW = disp.intern_atom('_NET_ACTIVE_WINDOW')
+    NET_WM_NAME = disp.intern_atom('_NET_WM_NAME')  # UTF-8
+    WM_NAME = disp.intern_atom('WM_NAME')           # Legacy encoding
+    WM_CLASS = disp.intern_atom('WM_CLASS')
+
     # init the watcher with the current focus before we update for the first time
     window = disp.get_input_focus().focus
+    window.change_attributes(event_mask=Xlib.X.PropertyChangeMask)
     watcher = Watcher(config, window.get_wm_name(), window.get_wm_class())
+
     while True:
+        # next_event() sleeps until we get an event
+        event = disp.next_event()
+
+        if event.atom not in [NET_ACTIVE_WINDOW, NET_WM_NAME, WM_NAME, WM_CLASS]:
+            # if its not about the window name or class, who cares
+            continue
+
         window = disp.get_input_focus().focus
+
+        # listen for changes in the focused window's properties
+        window.change_attributes(event_mask=Xlib.X.PropertyChangeMask)
+
         watcher.handle_update(window.get_wm_name(), window.get_wm_class())
-        sleep(SLEEP_DUR)
 
 
 if __name__ == "__main__":
